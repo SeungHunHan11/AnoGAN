@@ -38,7 +38,18 @@ python [train.py]
 
 ## For f-AnoGAN train and inference
 
--
+```python
+python train_fanogan.py
+--trainimgs cropped_images/normal # Normal image set for encoder training. 70% of the dataset will be utilized for training. Rest will comprise test image set
+--generator retina_train/model_saves/Generator_epoch_295.pt # Pretrained Generator for Retina Dataset
+--discriminator retina_train/model_saves/Discriminator_epoch_295.pt # Pretrained Discriminator for Retina Dataset
+--trainbatchsize 16 # Train dataset batch size
+```
+
+- Use trained encoder to produce generated image (i.e. G(E(x)), where x is an original image, E(x)=z).
+- Add up discriminator loss and generation loss using the image generated via encoder.
+- Trained encoder weight is available in [**Encoder Weight**](https://github.com/SeungHunHan11/AnoGAN/blob/master/f-anogan/logs/model_saves/Encoder.pt)
+- Refer to [**f-AnoGAN Guide**](https://github.com/SeungHunHan11/AnoGAN/blob/master/fanoganguid.ipynb) for Inference 
 
 ## Further guidance
 
