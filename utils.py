@@ -6,35 +6,36 @@ import os
 from torchvision.utils import make_grid
 from torchvision import transforms
 from torch.autograd import Variable
+from torchvision.io import read_image
 
 def transform_data(image_size):
     transform=transforms.Compose(
             [
             transforms.ToPILImage(),
-            transforms.Resize(image_size),
+            transforms.Resize((image_size,image_size)),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
             ])
     return transform
 
 class rawimage_dataset(Dataset):
-    def __init__(self,path_list,transform=None):
-        super(custom_data,self).__init__()
+    def __init__(self,path_list,labels,transform=None):
 
         self.path_list=path_list
         self.transform=transform
-
+        self.labels=labels
     def __len__(self):
         return(len(self.path_list))
     
     def __getitem__(self, idx):
         img=self.path_list[idx]
-        img_vec=np.transpose(plt.imread(img),(2,0,1))
-
+        img_vec=read_image(img)[:3,...]
         if self.transform:
             img_vec=self.transform(img_vec)
 
-        return img_vec
+        label=self.labels[idx]
+
+        return img_vec,label
 
 class custom_data(Dataset):
     def __init__(self,data,labels,transform=None):
@@ -63,9 +64,8 @@ def weights_init(m):
         torch.nn.init.zeros_(m.bias)
 
 def display_image(real_img,generated_img,epoch=None,g_loss=None,d_loss=None,
-                    batch_size=128,sample_size=10,Dis_acc=None,fake_acc=None):
+                    batch_size=128,sample_size=10,Dis_acc=None,fake_acc=None,save_path=None):
 
-    os.makedirs('./train_img/',exist_ok=True)
 
     realimg=real_img
 
@@ -98,7 +98,7 @@ def display_image(real_img,generated_img,epoch=None,g_loss=None,d_loss=None,
         #axesdown[i].axis('off')
     
     plt.tight_layout()
-    plt.savefig('./train_img/epoch_{}_train.png'.format(epoch), dpi=300,facecolor='white')
+    plt.savefig(save_path+'/epoch_{}_train.png'.format(epoch+1), dpi=300,facecolor='white')
     plt.close(fig)
     #plt cookbook https://matplotlib.org/stable/gallery/subplots_axes_and_figures/subfigures.html
 
@@ -115,8 +115,6 @@ def discriminator_loss(Discrimination_fake, real_images_dis):
     return torch.sum(torch.abs(subtract))
 
 def estimate_anomaly_score(real_images,Discrimination_fake,real_images_dis, generated_images,alpha):
-    real_images = real_images
-    generated_images = generated_images
 
     resi_loss = residual_loss(real_images, generated_images)
     disc_loss = discriminator_loss(Discrimination_fake, real_images_dis)
@@ -124,8 +122,9 @@ def estimate_anomaly_score(real_images,Discrimination_fake,real_images_dis, gene
 
     return torch.sqrt(ano_loss)
 
-def plot_test(input,fake_img_vec,idx=None):
+def plot_test(input,fake_img_vec,idx=None,label=None,save_path=None):
 
+    label= 'Normal' if label==0 else 'Abnormal'
     fig, axs = plt.subplots(1, 2)
 
     axs[0].title.set_text(f'Batch {idx+1} Original')
@@ -135,5 +134,6 @@ def plot_test(input,fake_img_vec,idx=None):
     axs[1].imshow(make_grid(fake_img_vec.detach().cpu(),normalize=True,padding=3).permute((1,2,0)))
 
     plt.tight_layout()
-    plt.savefig(f'./test_imgs/test_img_{idx+1}.png', dpi=300,facecolor='white')
+    plt.suptitle(label)
+    plt.savefig(save_path+f'/test_img_{idx+1}.png', dpi=300,facecolor='white')
     plt.close(fig)

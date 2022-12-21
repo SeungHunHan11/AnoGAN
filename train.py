@@ -48,7 +48,7 @@ class train(nn.Module):
         self.G=None
 
     def train_G_D(self,train_loader,lr=1E-3,bias=False,epochs=50,
-                g_epochs=5,sample_size=10,verbose=False
+                g_epochs=5,sample_size=10,verbose=False,save_logs=True
                 ):
 
         '''
@@ -68,8 +68,18 @@ class train(nn.Module):
                 Trained Generator
                 Trained Discriminator
         '''
-
-        os.makedirs('./model_saves/',exist_ok=True)
+        if save_logs:
+            x=0
+            while True:
+                increment='' if x==0 else str(x)
+                dir_name='./train_logs'+increment+'/'
+                if not os.path.exists(dir_name):
+                    os.makedirs(dir_name,exist_ok=True)
+                    break
+                x+=1
+            
+            os.makedirs(dir_name+'/model_saves')
+            print('Training Logs will be saved to'+dir_name)
 
         device=self.device
         latent_dim=self.latent_dim
@@ -109,7 +119,6 @@ class train(nn.Module):
         self.G.train()
         steps_per_epoch=len(train_loader)
 
-        print('Images will be saved to ./train_img folder')
 
         for epoch in range(epochs):
             best_renewed=False
@@ -162,22 +171,24 @@ class train(nn.Module):
             scheduler_D.step(epoch + 1 + idx * steps_per_epoch)
             scheduler_G.step(epoch + 1 + idx * steps_per_epoch)
 
-            display_image(real_img=real_sampled.detach().cpu(),
+            if save_logs:
+                display_image(real_img=real_sampled.detach().cpu(),
                             generated_img=test_img.detach().cpu(),epoch=epoch,
                             batch_size=batch_size,sample_size=sample_size,
                             g_loss=loss_G.item(),d_loss=loss_D.item(),
-                            Dis_acc=dis_acc,fake_acc=fake_img_dis)
+                            Dis_acc=dis_acc,fake_acc=fake_img_dis,save_path=dir_name)
 
             if best_loss>loss_G.item():
                 best_loss=loss_G.item()
-                torch.save(self.D.state_dict(),'./model_saves/Discriminator_best.pt')
-                torch.save(self.G.state_dict(),'./model_saves/Generator_best.pt')
+                if save_logs:
+                    torch.save(self.D.state_dict(),dir_name+'/model_saves'+'/Discriminator_best.pt')
+                    torch.save(self.G.state_dict(),dir_name+'/model_saves'+'/Generator_best.pt')
                 best_renewed=True
 
             prompt=f'''
                     Training In Progress
 
-                    Now at {epoch+1} Epoch
+                    Now at {epoch+1} / {epochs} Epoch 
                     D_Loss: {loss_D.item():.4f} G_Loss: {loss_G.item():.4f}
 
                     '''
@@ -185,9 +196,9 @@ class train(nn.Module):
             if best_renewed:
                 prompt=prompt+'\nBest Renewed.'
 
-            if epoch%5==0:
-                torch.save(self.D.state_dict(),'./model_saves/Discriminator_epoch_{}.pt'.format(epoch))
-                torch.save(self.G.state_dict(),'./model_saves/Generator_epoch_{}.pt'.format(epoch))
+            if epoch%5==0 and save_logs:
+                torch.save(self.D.state_dict(),dir_name+'/model_saves'+'/Discriminator_epoch_{}.pt'.format(epoch))
+                torch.save(self.G.state_dict(),dir_name+'/model_saves'+'/Generator_epoch_{}.pt'.format(epoch))
                 print('Latest weight saved')
 
             print(prompt)
@@ -199,7 +210,7 @@ class train(nn.Module):
 
         return self.G, self.D
 
-    def latent_mapping(self,test_loader,latent_dim=None,alpha=0.1,D=None,G=None,lr=1E-3,iteration=400,save_path=None):
+    def latent_mapping(self,test_loader,latent_dim=None,alpha=0.1,D=None,G=None,lr=1E-3,iteration=400,save_logs=True):
         '''
         'Train a latent vector that can be mapped to the computed image and calculate anomaly score'
             Args:
@@ -217,8 +228,19 @@ class train(nn.Module):
                 Fully trained latent vector collections
                 Anomaly score for each images
         '''
-        os.makedirs('./test_imgs/',exist_ok=True)
 
+        if save_logs:
+            x=0
+            while True:
+                increment='' if x==0 else str(x)
+                dir_name='./test_logs'+increment+'/'
+                if not os.path.exists(dir_name):
+                    os.makedirs(dir_name,exist_ok=True)
+                    break
+                x+=1
+            print('Inference Logs will be saved to'+dir_name)
+
+        
         if D !=None:
             Dis=D
         else:
@@ -243,11 +265,14 @@ class train(nn.Module):
             else:
                 print('Please compute latent_dim')
 
-        batch_size=next(iter(test_loader))[0].shape[0]
+        if len(test_loader)!=1:
+            batch_size=next(iter(test_loader))[0].shape[0]
+        else:
+            batch_size=1
 
         channels=3 if self.is_color else 1
 
-        channel=next(iter(test_loader))[0].shape[1]
+        channel=test_loader.dataset[0][0].shape[0]
 
         if channel!=channels:
             print('Input image channel not compatible with pretrained Discriminator')
@@ -263,7 +288,8 @@ class train(nn.Module):
         latent_collection=[]
         xx_original=[]
         yy_original=[]
-        print('Images will be saved to ./test_img folder')
+
+
         for idx, (xx,yy) in enumerate(test_loader):
             real_img=xx.to(self.device)
             for i in range(iteration):
@@ -298,16 +324,26 @@ class train(nn.Module):
                                     real_img_dis,fake_img,alpha)
 
                 loss.append(final_anomaly.detach().cpu().numpy())
-            
-            plot_test(xx,fake_img,idx)
+
+            if save_logs:
+                plot_test(xx,fake_img,idx,label=yy.item(),save_path=dir_name)
 
             print(f'Final Anomaly Loss for Batch {idx+1} / {len(test_loader)} is {final_anomaly.item():.4f}')
 
 
         latent_space = np.array(latent_collection)
-        
+
+        if save_logs:
+            np.save(dir_name+'/loss_saves',loss)
+            np.save(dir_name+'/z_saves',latent_space)
+            np.save(dir_name+'/xx_saves',xx_original)
+            np.save(dir_name+'/yy_saves',yy_original)
+
+            print('Data Saved')
+
+        print('Optimization Completed')
+
         return xx_original,yy_original,latent_space,loss
-            
 
 
 if __name__=='__main__':
@@ -331,21 +367,19 @@ if __name__=='__main__':
     parser.add_argument(
         '--latent_dim',
         type=int,
-        default=100,
+        default=128,
         help='Dimension of Latent Vector Z which is computed into generator to produce fake image'
         )
 
     parser.add_argument(
         '--trainimgs',
         type=str,
-        help='Path for train image sets'
-        )
+        help='Path for normal images')
 
     parser.add_argument(
         '--testimgs',
         type=str,
-        help='Path for test image sets'
-        )
+        help='Path for abnormal images')
 
     parser.add_argument(
         '--epochs',
@@ -376,10 +410,17 @@ if __name__=='__main__':
         )
 
     parser.add_argument(
-        '--batchsize',
+        '--trainbatchsize',
         type=int,
         default=128,
-        help='Batchsize'
+        help='Train Batchsize'
+        )
+
+    parser.add_argument(
+        '--testbatchsize',
+        type=int,
+        default=1,
+        help='Test Batchsize'
         )
 
     parser.add_argument(
@@ -395,10 +436,38 @@ if __name__=='__main__':
                     help='Iteration for image optimization'
                     )
 
+    parser.add_argument(
+                    '--trainmode',
+                    type=str,
+                    default='True',
+                    help='Train DCGAN? Or make an inference'
+                    )
+
+    parser.add_argument(
+                    '--generator',
+                    type=str,
+                    default=None,
+                    help='path for pretrained generator weights'
+                    )
+    parser.add_argument(
+                '--discriminator',
+                type=str,
+                default=None,
+                help='path for pretrained discriminator weights'
+                )
+
+    parser.add_argument(
+        '--savelogs',
+        type=str,
+        default='True',
+        help='Save imgs and data'
+        )
+
     args=vars(parser.parse_args())
 
     train_path=os.path.join(ROOT/args['trainimgs'])
     test_path=os.path.join(ROOT/args['testimgs'])
+
 
     img_size=args['img_size']
     device= torch.device('cuda') if args['device']=='cuda' and torch.cuda.is_available() else torch.device('cpu')
@@ -407,23 +476,49 @@ if __name__=='__main__':
     verbose=args['verbose']
     is_color=args['iscolor']
     sample_size=args['samplesize']
-    batchsize=args['batchsize']
+    trainbatchsize=args['trainbatchsize']
+    testbatchsize=args['testbatchsize']
+    train_mode=True if args['trainmode'].lower()=='true' else False
+    iteration=args['iteration']
+    alpha=args['alpha']
+    savelogs=True if args['savelogs'].lower()=='true' else False
     lr=1E-3
 
     transform=transform_data(img_size)
 
-    trainset_path=glob.glob(os.path.join(train_path+'*.png'))
-    train_dataset2=rawimage_dataset(trainset_path,transform=transform)
-    train_loader_normal = DataLoader(train_dataset2, batch_size=batchsize, shuffle=True)
+    trainset_path=glob(os.path.join(train_path+'/*.png'))
 
-    test_path=glob.glob(os.path.join(test_path+'*.png'))
-    test_dataset2=rawimage_dataset(test_path,transform=transform)
-    test_loader_abnormal = DataLoader(test_dataset2, batch_size=batchsize, shuffle=True)
+    train_cut=round(len(trainset_path)*0.7)
+    train_label=np.zeros((len(trainset_path[:train_cut]),))
+
+    train_dataset2=rawimage_dataset(trainset_path[:train_cut],train_label,transform=transform)
+    train_loader = DataLoader(train_dataset2, batch_size=trainbatchsize, shuffle=True)
     
-    C=train()
-    C.train_G_D(train_loader=train_loader_normal,g_epochs=10,epochs=epochs,
-                device=device,verbose=verbose,is_color=is_color,
-                sample_size=sample_size,lr=lr,latent_dim=latent_dim,
-                img_size=img_size)
+
+    test_path=glob(os.path.join(test_path+'/*.png'))
+
+    test_labels=np.append(np.zeros((len(trainset_path[train_cut:]),)),np.ones((len(test_path),1)))
+
+    test_path=test_path+trainset_path[train_cut:]
+
+    test_dataset2=rawimage_dataset(test_path,test_labels,transform=transform)
+    test_loader = DataLoader(test_dataset2, batch_size=testbatchsize, shuffle=True)
+    
+    C=train(device=device,latent_dim=latent_dim,is_color=is_color,img_size=img_size)
+
+    if train_mode:
+        G,D=C.train_G_D(train_loader=train_loader,g_epochs=10,epochs=epochs,
+                    verbose=verbose,sample_size=sample_size,
+                    lr=lr,save_logs=savelogs)
+    else:
+        G = generator(latent_dim=latent_dim, last_dim=img_size, is_color=is_color, bias=False).to(device)
+        D = Discriminator(imgsize=img_size, is_color=is_color, bias=False).to(device)
+        G.load_state_dict(torch.load(args['generator']))
+        D.load_state_dict(torch.load(args['discriminator']))
+    
+    xx,yy,z,loss=C.latent_mapping(test_loader,alpha=alpha,D=D,G=G,
+                                    iteration=iteration,save_logs=savelogs)
+
+
 
   ###################################################

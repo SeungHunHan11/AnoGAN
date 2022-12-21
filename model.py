@@ -76,3 +76,34 @@ class Discriminator(nn.Module):
         
         discrimination = self.output_layer(features)
         return discrimination
+
+class Encoder(nn.Module):
+    def __init__(self,latent_dim=128,img_size=64,channels=3,bias=True):
+        super(Encoder,self).__init__()
+
+        def encoder_block(in_features, out_features, bn=True):
+            if bn:
+                block = [
+                         nn.Conv2d(in_features, out_features, 4, 2, 1, bias=bias),
+                         nn.BatchNorm2d(out_features),
+                         nn.LeakyReLU(0.2, inplace=True)
+                ]
+            else:
+                block = [
+                         nn.Conv2d(in_features, out_features, 4, 2, 1, bias=bias),
+                         nn.LeakyReLU(0.2, inplace=True)
+                ]
+            return block
+
+        self.features = nn.Sequential(
+            *encoder_block(channels, img_size, bn=False),
+            *encoder_block(img_size, img_size*2, bn=True),
+            *encoder_block(img_size*2, img_size*4, bn=True),
+            *encoder_block(img_size*4, img_size*8, bn=True),
+            nn.Conv2d(img_size*8, latent_dim, 4, 1, 0, bias=bias),
+            nn.Tanh()
+        )
+
+    def forward(self, x):
+        validity = self.features(x)
+        return validity
