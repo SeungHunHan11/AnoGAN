@@ -9,14 +9,14 @@
 ### Necessary Notices:
 
 
-- Weight of a pretrained DCGAN, which used mnist dataset(where car, label=1, was treated as normal and others as abnormal) is available in [**Mnist Weights**] 
-- Weight of a pretrained DCGAN which used Retina Abnormal dataset is available in [**Retina Weights**]
-- Latent Vector optimization result for Retina Abnormal dataset is available in [**Latent Optimizaiton**]
-- Retina Abnormal dataset is available in [**Retina Dataset**]
+- Weight of a pretrained DCGAN, which used mnist dataset(where car, label=1, was treated as normal and others as abnormal) is available in [**Mnist Weights**](https://github.com/SeungHunHan11/AnoGAN/tree/master/Mnist_weights/permanent)
+- Weight of a pretrained DCGAN which used Retina Abnormal dataset is available in [**Retina Weights**](https://github.com/SeungHunHan11/AnoGAN/tree/master/retina_train/model_saves)
+- Latent Vector optimization result for Retina Abnormal dataset is available in [**Latent Optimizaiton**](https://github.com/SeungHunHan11/AnoGAN/tree/master/retina_inference_result)
+- Retina Abnormal dataset is available in [**Retina Dataset**](https://github.com/SeungHunHan11/AnoGAN/tree/master/cropped_images)
 
 ### Steps:
 
-1. Install packages listed in [**requirements.txt**]
+1. Install packages listed in [**requirements.txt**](https://github.com/SeungHunHan11/AnoGAN/blob/master/requirements.txt)
 2. Divide dataset into normal and abnormal image folders
 3. Run prompt given below
 
@@ -42,12 +42,12 @@ python [train.py]
 
 ## Further guidance
 
-For training and inference, refer to [guide.ipynb] 
+For training and inference, refer to [**guide.ipynb**](https://github.com/SeungHunHan11/AnoGAN/blob/master/guide.ipynb)
 
-For comparison of AnoGAN and F-AnoGAN results, refer to [**fanoganguide.ipynb**]
+For comparison of AnoGAN and F-AnoGAN results, refer to [**fanoganguide.ipynb**](https://github.com/SeungHunHan11/AnoGAN/blob/master/fanoganguid.ipynb)
 
 ## Original Paper:
-[**Unsupervised Anomaly Detection with Generative Adversarial Networks to Guide Marker Discovery**] (https://arxiv.org/abs/1703.05921) (Schlegl et al., 2017)
+[**Unsupervised Anomaly Detection with Generative Adversarial Networks to Guide Marker Discovery**](https://arxiv.org/abs/1703.05921) (Schlegl et al., 2017)
 
 ## Credit:
 * https://github.com/mulkong/f-AnoGAN_with_Pytorch
